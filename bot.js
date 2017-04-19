@@ -1,29 +1,36 @@
 console.log("The bot is starting")
 var Twit = require('twit')
 var config = require('./config')
+var request = require('request')
 
 var T = new Twit(config)
 
 //tweetIt();
 
+getNasaData()
+// getTweets()
 
-// gotData()
-//
-var params = { 
-  q: 'global warming OR climate change :) since:2015-12-21', 
-  count: 20 
-}
-T.get('search/tweets', params, gotData)
 
-function gotData(err, data, response) {
-  if(err) console.log("there was an error: ", err)
-  else console.log("data received successfully")
-
-  var tweets = data.statuses;
-  for(var i = 0; i < tweets.length; i++){
-    console.log(tweets[i].text)
+// gets tweets with specified query parameters
+function getTweets (params) {
+  if(!params) {
+    var params = { 
+      q: 'global warming OR climate change :) since:2015-12-21', 
+      count: 20 
+    }
   }
-  //console.log(data)
+  T.get('search/tweets', params, gotData)
+
+  function gotData(err, data, response) {
+    if(err) console.log("there was an error: ", err)
+    else console.log("data received successfully")
+
+    var tweets = data.statuses;
+    for(var i = 0; i < tweets.length; i++){
+      console.log(tweets[i].text)
+    }
+    //console.log(data)
+  }
 }
 
 // tweetIt()
@@ -65,4 +72,20 @@ function reTweet(tweetId) {
   function reTweetIt(err, data, response) {
     console.log("reTweet data: ", data)
   }
+}
+
+
+
+//
+// NasaAPI
+//
+function getNasaData() {
+  var q = 'apollo%2011&description=moon%20landing&media_type=image'
+  var url = 'http://images-api.nasa.gov/search?' + q
+
+  request(url, function (error, response, body) {
+    console.log('error:', error); // Print the error if one occurred
+    console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+    console.log('body:', body); // Print the HTML for the Google homepage.
+  });
 }
