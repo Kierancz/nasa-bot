@@ -15,6 +15,7 @@
   "author": "Kieran Czerwinski",
   "license": "ISC",
   "dependencies": {
+    "lodash": "^4.17.4",
     "twit": "^2.2.5"
   }
 }
