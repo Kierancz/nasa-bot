@@ -1,0 +1,18 @@
+{
+  "places": [
+    "moon",
+    "mars",
+    "sun",
+    "earth",
+    "ISS",
+    "galaxy"
+  ],
+  "things": [
+    "SLS",
+    "hubble",
+    "concept",
+    "artist",
+    "launch",
+    "rover"
+  ]
+}

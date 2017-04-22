@@ -4,16 +4,17 @@ var config = require('./config')
 var request = require('request')
 var _ = require('lodash')
 const fs = require('fs')
+var keywords = require('./keywords.json')
 
 var T = new Twit(config)
 
 //tweetIt();
 
-getNasaData('apollo%20SLS&media_type=image')
+//getNasaData('apollo&media_type=image')
 //thisHisDay()
 //isDateMatch()
 // getTweets()
-
+//getRandomKeywords()
 
 // gets tweets with specified query parameters
 function getTweets (params) {
@@ -105,23 +106,35 @@ function tweetPhoto () {
   })
 }
 
+
+//
+//
+var foundPhotoObjs = []
+
 //
 // NasaAPI
-//
+// Gets Nasa data from provided q
+// and returns 
 function getNasaData(q) {
   if(!q) q='apollo%2011&description=moon%20landing&media_type=image'
   var url = 'http://images-api.nasa.gov/search?q=' + q
-  
+  var isMatchFound = false
+  var matchedPhoto = {}
+
   function callback(error, response, body) {
-    console.log('error:', error); // Print the error if one occurred
     console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
-    //console.log('body:', body); // Print the HTML for the Google homepage.
     var photos = JSON.parse(body)
     //console.log("photos: ", photos)
-    isDateMatch(photos)
+    if(error) {
+      console.log('error:', error) // Print the error if one occurred
+    } else {
+      matchedPhoto = isDateMatch(photos)
+      isMatchFound = matchedPhoto
+    }
   }
-
   request(url, callback)
+  if(isMatchFound) return true
+  else return false
 }
 
 //
@@ -138,32 +151,93 @@ function dateToday() {
 }
 
 //
-// Iterates through NASA photo collection and matches
+// Iterates through NASA photo collection and
 // finds photos that match current date.
 function isDateMatch(photo) {
   photos = photo.collection.items
-  //console.log('photos: ', photos)
+  var photoCount = photos.length
+  // array to store objects of photos that match
+  var matchedPhotos = []
+  var isMatch = false
+  var matchedPhoto = {}
+
   var photoData = _.forEach(photos, function(value, key) {
     var data = value.data
+    var href = value.links[0].href
     photoData = _.forEach(data, function(d) {
       //console.log("value: ", d)
+      d.href = href
       var date_created = d.date_created
       var dObj = new Date(date_created)
       var day = dObj.getDate()
       var month = dObj.getMonth() + 1
-      console.log("Photo Date found: ", month, day)
+      var year = dObj.getFullYear()
+      //console.log("Photo Date found: ", month, day)
+      //console.log("Photo link: ", d.href)
 
       // match date
       if((dateToday().month == month) && (dateToday().day == day)) {
+        isMatch = true
         console.log("Date match found!")
+        matchedPhoto.title = d.title
+        matchedPhoto.description = d.description
+        matchedPhoto.href = d.href
+        matchedPhoto.nasa_id = d.nasa_id
+
+        console.log("Matched Photo: ", matchedPhoto)
+        //console.log("Year: ", year)
       }
     })
-
   })
+  if(!isMatch) {
+    console.log("No photos with date match.")
+    console.log("Out of the total photos found: ", photoCount)
+    return false
+  }
+  //push found photo matchs into global array
+  console.log("pushing matchedPhoto to foundPhotoObjs: ", matchedPhoto)
+  foundPhotoObjs = foundPhotoObjs.push(matchedPhoto)
+  return true
 }
-/*
-keywords: 
-concept
-artist
-apollo
-*/
+
+//
+// returns two random keywords to narrow search to 
+// interesting things
+//
+function getRandomKeywords() {
+  var places = keywords.places
+  var things = keywords.things
+  var p = Math.floor(Math.random()*places.length)
+  var t = Math.floor(Math.random()*things.length)
+  var randKeywords = [places[p], things[t]]
+  //console.log("places, things: ", places, things)
+  //remove searched keywords from arrays
+  //places.splice(p, p)
+  //things.splice(t, t)
+  return randKeywords
+
+}
+
+iterateSearchKeys()
+
+function iterateSearchKeys() {
+  for(var i = 0; i < 100; i++) {
+    searchKeys()
+  }
+  for(var j = 0; j < foundPhotoObjs.length; j++) {
+    console.log("Matched photo in array: ", foundPhotoObjs[j])
+  }
+}
+
+function searchKeys() {
+  var found = false
+  var randKeys = []
+
+  randKeys = getRandomKeywords()
+  //console.log("Random keys: ", randKeys[r])
+  var searchQ = randKeys[0] + '%20' + randKeys[1] + '&media_type=image'
+  //console.log("Search Query: ", searchQs[s])
+
+  getNasaData(searchQ)
+
+}
