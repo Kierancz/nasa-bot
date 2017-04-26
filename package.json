@@ -15,6 +15,8 @@
   "author": "Kieran Czerwinski",
   "license": "ISC",
   "dependencies": {
+    "async": "^2.3.0",
+    "asyncawait": "^1.0.6",
     "lodash": "^4.17.4",
     "twit": "^2.2.5"
   }
