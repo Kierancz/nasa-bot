@@ -4,75 +4,63 @@ var config = require('./config')
 var request = require('request')
 var _ = require('lodash')
 const fs = require('fs')
-var keywords = require('./keywords.json')
+const keywords = require('./keywords.json')
+var _ = require('lodash');
 //var async = require('async')
-var async  = require('asyncAWAIT/async')
-var AWAIT = require('asyncAWAIT/AWAIT')
 
 var T = new Twit(config)
 
 var foundPhotoObjs = []
+var foundPhoto = false
+var isMatchIter = 0
+const iterNum = 50
 //tweetIt();
 
-//getNasaData('apollo&media_type=image')
-//thisHisDay()
-//isDateMatch()
-// getTweets()
-//getRandomKeywords()
-//makeMatchArray()
-//iterateFunction(100, searchKeys)
 
-
-function printArray(array) {
-  console.log("Array: ", array)
+var search = function search() {
+  return getNasaData(buildSearchQ(getRandKeys()))
 }
 
+iterateFunction(iterNum, search)
 
-var control = async (function() {
-  var keys = AWAIT (getRandKeys())
-  var searchQ = AWAIT (buildSearchQ(keys))
-  var photos = AWAIT (getNasaData(searchQ))
-  var matchedPhotos = AWAIT (isDateMatch(photos))
-  return printArray(matchedPhotos)
-})
 
-control()
-//console.log("control: ", control)
+function processPhotos() {
+  console.log("In processPhoto()")
+  var foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id')
+  console.log("Unique found photos: ", foundPhotos)
+}
 
 //
 // NasaAPI
-// Gets Nasa data from provided q
+// Gets NASA data from provided q
 // and returns 
 function getNasaData(q) {
-  console.log("In getNasaData()")
+  //console.log("In getNasaData(" + q + ")")
   if(!q) q='apollo%2011&description=moon%20landing&media_type=image'
   var url = 'http://images-api.nasa.gov/search?q=' + q
-  var photoData = {}
 
   function callback(error, response, body) {
     //console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
-    var data = JSON.parse(body)
+    if(body) var data = JSON.parse(body)
     //console.log("photos: ", photos)
     if(error) {
       console.log('error:', error) // Print the error if one occurred
-    } else {
-      //isDateMatch(photos)
-      photoData = data
+    } else if(data) {
+      isDateMatch(data)
     }
   }
   request(url, callback)
-  return photoData
 }
 
 //
 // returns today's date with only month and day to match
-// with the same format in Nasa photos
+// with the same format in NASA photos
 //
 function dateToday() {
-  console.log("In dateToday()")
+  //console.log("In dateToday()")
   var date = new Date()
   var today = {}
-  today.day = date.getDate()
+  today.day = date.getDate() + 1
   today.month = date.getMonth() + 1
 
   return today
@@ -86,9 +74,12 @@ function isDateMatch(photoData) {
   photos = photoData.collection.items
   var photoCount = photos.length
   // array to store objects of photos that match
-  var matchedPhotos = []
-  var isMatch = false
+  //var matchedPhotos = []
   var matchedPhoto = {}
+
+  //get date today
+  const mToday = dateToday().month
+  const dToday = dateToday().day
 
   var photoData = _.forEach(photos, function(value, key) {
     var data = value.data
@@ -105,35 +96,32 @@ function isDateMatch(photoData) {
       //console.log("Photo link: ", d.href)
 
       // match date
-      if((dateToday().month == month) && (dateToday().day == day)) {
-        isMatch = true
+      if((mToday == month) && (dToday == day)) {
         matchedPhoto.title = d.title
         matchedPhoto.description = d.description
         matchedPhoto.href = d.href
         matchedPhoto.nasa_id = d.nasa_id
 
-        console.log("Matched Photo: ", matchedPhoto)
+        //console.log("Matched Photo: ", matchedPhoto)
         //console.log("Year: ", year)
-        //push found photo matchs into global array
-        //console.log("pushing matchedPhoto to foundPhotoObjs: ", matchedPhoto)
-        matchedPhotos.push(matchedPhoto)
+        // only call postPhoto once
         foundPhotoObjs.push(matchedPhoto)
+        console.log("found photo with date match")
       }
     })
   })
-  if(!isMatch) {
-    //console.log("No photos with date match.")
-    //console.log("NO MATCH out of: ", photoCount)
-    return false
-  } else return matchedPhotos
+  isMatchIter++
+  // when finished searching process the photos found
+  if(isMatchIter == iterNum) processPhotos()
 }
+
 
 //
 // returns two random keywords in an array to narrow search to 
 // interesting things
 //
 function getRandKeys() {
-  console.log("In getRandKeys()")
+  //console.log("In getRandKeys()")
   var places = keywords.places
   var things = keywords.things
   var p = Math.floor(Math.random()*places.length)
@@ -157,7 +145,7 @@ function iterateFunction(num, iterFunction) {
 }
 
 function buildSearchQ(keys) {
-  console.log("In buildSearchQ()")
+  //console.log("In buildSearchQ()")
   if(!keys) var randKeys = getRandKeys()
   var randKeys = keys
   //console.log("Random keys: ", randKeys)
@@ -219,6 +207,9 @@ function tweetIt(txt) {
 var stream = T.stream('user')
 //Anytime someone follows us
 stream.on('follow', followed)
+stream.on('error', function (err) { 
+  console.log("stream error: ", err)
+})
 function followed(eventMsg) {
   console.log("follow event ")
   var name = eventMsg.source.name
