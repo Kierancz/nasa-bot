@@ -13,12 +13,12 @@ var T = new Twit(config)
 var foundPhotoObjs = []
 var foundPhoto = false
 var isMatchIter = 0
-const iterNum = 50
+const iterNum = 99
 //tweetIt();
 
 
 var search = function search() {
-  return getNasaData(buildSearchQ(getRandKeys()))
+  return getNasaData(buildSearchQ(getKeys()))
 }
 
 iterateFunction(iterNum, search)
@@ -27,13 +27,28 @@ iterateFunction(iterNum, search)
 function processPhotos() {
   console.log("In processPhoto()")
   var foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id')
-  console.log("Unique found photos: ", foundPhotos)
+  //console.log("Unique found photos: ", foundPhotos)
+  var byOldest = _.sortBy(foundPhotos, 
+                        [function(p) { return p.year }])
+  console.log("Photos by year: ", byOldest)
+
+  postPhoto(byOldest[0])
+}
+
+function postPhoto(photo) {
+  console.log("In postPhoto()")
+  if(photo) {
+    console.log("Photo to post: ", photo)
+    var yearsAgo = dateToday().year - photo.year
+    var tweet = yearsAgo + " yrs ago today: " + photo.title + " " + photo.href
+    tweetIt(tweet)
+  }
 }
 
 //
 // NasaAPI
 // Gets NASA data from provided q
-// and returns 
+// and checks for historical matches with the current month/day
 function getNasaData(q) {
   //console.log("In getNasaData(" + q + ")")
   if(!q) q='apollo%2011&description=moon%20landing&media_type=image'
@@ -53,15 +68,16 @@ function getNasaData(q) {
 }
 
 //
-// returns today's date with only month and day to match
-// with the same format in NASA photos
+// returns today's date as object with properties Y/M/D
+// and matches comparison format with NASA photos
 //
 function dateToday() {
   //console.log("In dateToday()")
   var date = new Date()
   var today = {}
-  today.day = date.getDate() + 1
-  today.month = date.getMonth() + 1
+  today.day = date.getDate()
+  today.month = date.getMonth() 
+  today.year = date.getFullYear()
 
   return today
 }
@@ -73,8 +89,6 @@ function isDateMatch(photoData) {
   console.log("In isDateMatch()")
   photos = photoData.collection.items
   var photoCount = photos.length
-  // array to store objects of photos that match
-  //var matchedPhotos = []
   var matchedPhoto = {}
 
   //get date today
@@ -90,10 +104,10 @@ function isDateMatch(photoData) {
       var date_created = d.date_created
       var dObj = new Date(date_created)
       var day = dObj.getDate()
-      var month = dObj.getMonth() + 1
+      var month = dObj.getMonth() + 1 //0-11 + 1
       var year = dObj.getFullYear()
+
       //console.log("Photo Date found: ", month, day)
-      //console.log("Photo link: ", d.href)
 
       // match date
       if((mToday == month) && (dToday == day)) {
@@ -101,10 +115,11 @@ function isDateMatch(photoData) {
         matchedPhoto.description = d.description
         matchedPhoto.href = d.href
         matchedPhoto.nasa_id = d.nasa_id
-
+        matchedPhoto.year = year
+        matchedPhoto.month = month
+        matchedPhoto.day = day
         //console.log("Matched Photo: ", matchedPhoto)
-        //console.log("Year: ", year)
-        // only call postPhoto once
+
         foundPhotoObjs.push(matchedPhoto)
         console.log("found photo with date match")
       }
@@ -120,8 +135,8 @@ function isDateMatch(photoData) {
 // returns two random keywords in an array to narrow search to 
 // interesting things
 //
-function getRandKeys() {
-  //console.log("In getRandKeys()")
+function getKeys() {
+  //console.log("In getKeys()")
   var places = keywords.places
   var things = keywords.things
   var p = Math.floor(Math.random()*places.length)
@@ -146,7 +161,7 @@ function iterateFunction(num, iterFunction) {
 
 function buildSearchQ(keys) {
   //console.log("In buildSearchQ()")
-  if(!keys) var randKeys = getRandKeys()
+  if(!keys) var randKeys = getKeys()
   var randKeys = keys
   //console.log("Random keys: ", randKeys)
   var searchQ = randKeys[0] + '%20' + randKeys[1] + '&media_type=image'
@@ -214,7 +229,7 @@ function followed(eventMsg) {
   console.log("follow event ")
   var name = eventMsg.source.name
   var screenName = eventMsg.source.screen_name
-  tweetIt('@' + screenName + ' Thank you for following transitBot!')
+  tweetIt('@' + screenName + ' Thank you for following NASA TimeMachineBot')
 }
 
 // 

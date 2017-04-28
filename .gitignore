@@ -2,3 +2,4 @@ node_modules
 *.log
 ._*
 config.js
+sample_imgs
