@@ -23,7 +23,17 @@ var search = function search() {
 
 iterateFunction(iterNum, search)
 
+// Downloads resource at any URL provided
+var download = function(uri, filename, callback){
+  request.head(uri, function(err, res, body){
+    console.log('content-type:', res.headers['content-type'])
+    console.log('content-length:', res.headers['content-length'])
 
+    request(uri).pipe(fs.createWriteStream('./imgs/' + filename)).on('close', callback)
+  })
+}
+
+// Filter and sort our photos by age
 function processPhotos() {
   console.log("In processPhoto()")
   var foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id')
@@ -35,13 +45,22 @@ function processPhotos() {
   postPhoto(byOldest[0])
 }
 
+
+// Posts provided photo and adds status to twitter
 function postPhoto(photo) {
   console.log("In postPhoto()")
   if(photo) {
     console.log("Photo to post: ", photo)
+    const photoTitle = photo.nasa_id + ".jpg"
+    // download the photo so we can upload to post
+    download(photo.href, photoTitle, function(){
+      console.log('Photo downloaded: ', photoTitle)
+    })
+
     var yearsAgo = dateToday().year - photo.year
-    var tweet = yearsAgo + " yrs ago today: " + photo.title + " " + photo.href
-    tweetIt(tweet)
+    var tweet = yearsAgo + " yrs ago today: " + photo.title 
+    //tweetIt(tweet)
+    tweetPhoto(photo, tweet)
   }
 }
 
@@ -67,20 +86,6 @@ function getNasaData(q) {
   request(url, callback)
 }
 
-//
-// returns today's date as object with properties Y/M/D
-// and matches comparison format with NASA photos
-//
-function dateToday() {
-  //console.log("In dateToday()")
-  var date = new Date()
-  var today = {}
-  today.day = date.getDate()
-  today.month = date.getMonth() 
-  today.year = date.getFullYear()
-
-  return today
-}
 
 //
 // Iterates through NASA photo collection and
@@ -170,6 +175,27 @@ function buildSearchQ(keys) {
   return searchQ
 }
 
+//
+//----------------------------------------------------------
+// Helper functions
+//----------------------------------------------------------
+//
+
+//
+// returns today's date as object with properties Y/M/D
+// and matches comparison format with NASA photos
+//
+function dateToday() {
+  //console.log("In dateToday()")
+  var date = new Date()
+  var today = {}
+  today.day = date.getDate() - 2
+  today.month = date.getMonth() 
+  today.year = date.getFullYear()
+
+  return today
+}
+
 
 //
 //----------------------------------------------------------
@@ -246,21 +272,21 @@ function reTweet(tweetId) {
 // 
 // post a tweet with media 
 // 
-function tweetPhoto () {
-  var b64content = fs.readFileSync('/path/to/img', { encoding: 'base64' })
+function tweetPhoto (photoObj, tweet) {
+  var b64Photo = fs.readFileSync('./imgs/' + photoObj.nasa_id + '.jpg', { encoding: 'base64' })
    
   // first we must post the media to Twitter 
-  T.post('media/upload', { media_data: b64content }, function (err, data, response) {
+  T.post('media/upload', { media_data: b64Photo }, function (err, data, response) {
     // now we can assign alt text to the media, for use by screen readers and 
     // other text-based presentations and interpreters 
     var mediaIdStr = data.media_id_string
-    var altText = "Small flowers in a planter on a sunny balcony, blossoming."
+    var altText = photoObj.title
     var meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
    
     T.post('media/metadata/create', meta_params, function (err, data, response) {
       if (!err) {
         // now we can reference the media and post a tweet (media will attach to the tweet) 
-        var params = { status: 'loving life #nofilter', media_ids: [mediaIdStr] }
+        var params = { status: [tweet], media_ids: [mediaIdStr] }
    
         T.post('statuses/update', params, function (err, data, response) {
           console.log(data)
