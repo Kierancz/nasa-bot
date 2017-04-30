@@ -10,19 +10,19 @@ var _ = require('lodash');
 
 var T = new Twit(config)
 
+var bot_name = 'NASA Time Machine'
+var bot_screen_name = 'NasaTimeMachine'
 var foundPhotoObjs = []
-var foundPhoto = false
 var isMatchIter = 0
-const iterNum = 99
-//tweetIt();
+const iterNum = 200
 
 
 var search = function search() {
   return getNasaData(buildSearchQ(getKeys()))
 }
 
+//setInterval(iterateFunction(iterNum, search), 1000*60*60*24)
 iterateFunction(iterNum, search)
-
 // Downloads resource at any URL provided
 var download = function(uri, filename, callback){
   request.head(uri, function(err, res, body){
@@ -52,15 +52,16 @@ function postPhoto(photo) {
   if(photo) {
     console.log("Photo to post: ", photo)
     const photoTitle = photo.nasa_id + ".jpg"
+    const details = "https://images.nasa.gov/#/details-" + photo.nasa_id + ".html"
+
+    var yearsAgo = dateToday().year - photo.year
+    var tweet = yearsAgo + " yrs ago today: " + photo.title + ". More details: " + details
+    
     // download the photo so we can upload to post
     download(photo.href, photoTitle, function(){
       console.log('Photo downloaded: ', photoTitle)
+      tweetPhoto(photo, tweet)
     })
-
-    var yearsAgo = dateToday().year - photo.year
-    var tweet = yearsAgo + " yrs ago today: " + photo.title 
-    //tweetIt(tweet)
-    tweetPhoto(photo, tweet)
   }
 }
 
@@ -121,8 +122,6 @@ function isDateMatch(photoData) {
         matchedPhoto.href = d.href
         matchedPhoto.nasa_id = d.nasa_id
         matchedPhoto.year = year
-        matchedPhoto.month = month
-        matchedPhoto.day = day
         //console.log("Matched Photo: ", matchedPhoto)
 
         foundPhotoObjs.push(matchedPhoto)
@@ -189,8 +188,8 @@ function dateToday() {
   //console.log("In dateToday()")
   var date = new Date()
   var today = {}
-  today.day = date.getDate() - 2
-  today.month = date.getMonth() 
+  today.day = date.getDate() - 24
+  today.month = date.getMonth() + 2
   today.year = date.getFullYear()
 
   return today
@@ -251,11 +250,21 @@ stream.on('follow', followed)
 stream.on('error', function (err) { 
   console.log("stream error: ", err)
 })
+
 function followed(eventMsg) {
   console.log("follow event ")
   var name = eventMsg.source.name
-  var screenName = eventMsg.source.screen_name
-  tweetIt('@' + screenName + ' Thank you for following NASA TimeMachineBot')
+  var screen_name = eventMsg.source.screen_name
+  if(screen_name !== bot_screen_name) {
+    tweetIt('@' + screen_name + ' Thank you for following me!')
+  }
+  T.post('friendships/create', {screen_name: screen_name}, 
+    function(err, data, response) { // Follow the user back
+      if (err) { // If error results
+        console.log(err); // Print error to the console
+      }
+    }
+  )
 }
 
 // 
@@ -295,3 +304,16 @@ function tweetPhoto (photoObj, tweet) {
     })
   })
 }
+
+
+//
+function tweetAtUs(eventMsg) {
+  var replyTo = eventMsg.in_reply_to_screen_name
+  var text = eventMsg.text
+  var fromUser = eventMsg.user.screen_name
+
+  if(replyTo === 'NasaTimeMachine') {
+    var newTweet = '@' + fromUser + ' thanks for saying hi!'
+    tweetIt(newTweet)
+  }
+} 

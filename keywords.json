@@ -5,7 +5,9 @@
     "sun",
     "earth",
     "ISS",
-    "galaxy"
+    "galaxy",
+    "space",
+    "jupiter"
   ],
   "things": [
     "apollo",
@@ -13,6 +15,9 @@
     "concept",
     "artist",
     "launch",
-    "rover"
+    "rover",
+    "telescope",
+    "nebula",
+    "aurora"
   ]
 }
