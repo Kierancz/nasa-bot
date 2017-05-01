@@ -5,15 +5,19 @@ var request = require('request')
 var _ = require('lodash')
 const fs = require('fs')
 const keywords = require('./keywords.json')
-var _ = require('lodash');
+var postedPhotos = require('./posted.json')
+//var postedArr = []
 //var async = require('async')
 
 var T = new Twit(config)
 
 var bot_name = 'NASA Time Machine'
 var bot_screen_name = 'NasaTimeMachine'
+// holds photo with current date match
 var foundPhotoObjs = []
+//var alreadyPosted = [] //photo ids that have been posted already
 var isMatchIter = 0
+// how many searches to perform
 const iterNum = 200
 
 
@@ -22,7 +26,14 @@ var search = function search() {
 }
 
 //setInterval(iterateFunction(iterNum, search), 1000*60*60*24)
-iterateFunction(iterNum, search)
+//iterateFunction(iterNum, search)
+var post = function post() {
+  iterateFunction(iterNum, search)
+}
+
+setInterval(post, 1000*60)
+
+
 // Downloads resource at any URL provided
 var download = function(uri, filename, callback){
   request.head(uri, function(err, res, body){
@@ -36,10 +47,10 @@ var download = function(uri, filename, callback){
 // Filter and sort our photos by age
 function processPhotos() {
   console.log("In processPhoto()")
-  var foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id')
+  var foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id') //eliminate duplicates
   //console.log("Unique found photos: ", foundPhotos)
   var byOldest = _.sortBy(foundPhotos, 
-                        [function(p) { return p.year }])
+    [function(p) { return p.year }])    //sort by oldest first
   console.log("Photos by year: ", byOldest)
 
   postPhoto(byOldest[0])
@@ -49,18 +60,36 @@ function processPhotos() {
 // Posts provided photo and adds status to twitter
 function postPhoto(photo) {
   console.log("In postPhoto()")
+  // throw out global photo collection we don't need anymore
+  foundPhotoObjs = []
+
   if(photo) {
     console.log("Photo to post: ", photo)
     const photoTitle = photo.nasa_id + ".jpg"
     const details = "https://images.nasa.gov/#/details-" + photo.nasa_id + ".html"
+    const yearsAgo = dateToday().year - photo.year
+    const tweet = yearsAgo + " yrs ago today: " + photo.title + ". More details: " + details
 
-    var yearsAgo = dateToday().year - photo.year
-    var tweet = yearsAgo + " yrs ago today: " + photo.title + ". More details: " + details
-    
+    console.log("posted array: ", postedPhotos)
+
+    //read in all the previously posted photos for match comparison later
+    fs.readFile('posted.json', 'utf8', function(err, data) {  
+      if(err) console.log("Error reading ids from file: ", err)
+      postedPhotos = JSON.parse(data)
+      console.log("posted ids: ", postedPhotos, typeof(postedPhotos))
+    })
+
+    // put new posted photo into array and write to file
+    postedPhotos.push(photo.nasa_id)
+
+    const stringifiedArr = JSON.stringify(postedPhotos)
+    fs.writeFile("posted.json", stringifiedArr, "utf8", 
+      function(err) {if(err) console.log("Error writing id to file: ", err)})
+
     // download the photo so we can upload to post
     download(photo.href, photoTitle, function(){
       console.log('Photo downloaded: ', photoTitle)
-      tweetPhoto(photo, tweet)
+      tweetPhoto(photo, tweet)  
     })
   }
 }
@@ -75,7 +104,7 @@ function getNasaData(q) {
   var url = 'http://images-api.nasa.gov/search?q=' + q
 
   function callback(error, response, body) {
-    //console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+    //console.log('statusCode:', response && response.statusCode) // Print the response status code if a response was received
     if(body) var data = JSON.parse(body)
     //console.log("photos: ", photos)
     if(error) {
@@ -113,10 +142,10 @@ function isDateMatch(photoData) {
       var month = dObj.getMonth() + 1 //0-11 + 1
       var year = dObj.getFullYear()
 
-      //console.log("Photo Date found: ", month, day)
-
-      // match date
-      if((mToday == month) && (dToday == day)) {
+      // match date and check to see if posted already
+      
+      var isPosted = _.includes(postedPhotos, d.nasa_id)
+      if((mToday == month) && (dToday == day) && (!isPosted)) {
         matchedPhoto.title = d.title
         matchedPhoto.description = d.description
         matchedPhoto.href = d.href
@@ -124,6 +153,7 @@ function isDateMatch(photoData) {
         matchedPhoto.year = year
         //console.log("Matched Photo: ", matchedPhoto)
 
+        // push found match to global array for later processing
         foundPhotoObjs.push(matchedPhoto)
         console.log("found photo with date match")
       }
@@ -131,7 +161,10 @@ function isDateMatch(photoData) {
   })
   isMatchIter++
   // when finished searching process the photos found
-  if(isMatchIter == iterNum) processPhotos()
+  if(isMatchIter == iterNum) { 
+    processPhotos()
+    isMatchIter = 0 // reset for next photo round
+  }
 }
 
 
@@ -154,23 +187,12 @@ function getKeys() {
 
 }
 
-
-function iterateFunction(num, iterFunction) {
-  console.log("In iterateFunction()")
-  if(!num) num = 10
-  for(var i = 0; i < num; i++) {
-    iterFunction()
-  }
-}
-
 function buildSearchQ(keys) {
   //console.log("In buildSearchQ()")
   if(!keys) var randKeys = getKeys()
   var randKeys = keys
   //console.log("Random keys: ", randKeys)
   var searchQ = randKeys[0] + '%20' + randKeys[1] + '&media_type=image'
-  //console.log("Search Query: ", searchQs[s])
-  //getNasaData(searchQ)
   return searchQ
 }
 
@@ -188,13 +210,20 @@ function dateToday() {
   //console.log("In dateToday()")
   var date = new Date()
   var today = {}
-  today.day = date.getDate() - 24
-  today.month = date.getMonth() + 2
+  today.day = date.getDate() - 26
+  today.month = date.getMonth() + 4
   today.year = date.getFullYear()
 
   return today
 }
 
+function iterateFunction(num, iterFunction) {
+  console.log("In iterateFunction()")
+  if(!num) num = 10
+  for(var i = 0; i < num; i++) {
+    iterFunction()
+  }
+}
 
 //
 //----------------------------------------------------------
