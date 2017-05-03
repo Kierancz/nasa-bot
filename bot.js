@@ -1,41 +1,59 @@
+"use strict"
 console.log("The bot is starting")
-var Twit = require('twit')
-var config = require('./config')
-var request = require('request')
-var _ = require('lodash')
+let Twit = require('twit')
+let config = require('./config')
+let request = require('request')
+let _ = require('lodash')
 const fs = require('fs')
 const keywords = require('./keywords.json')
-var postedPhotos = require('./posted.json')
-//var postedArr = []
-//var async = require('async')
+let postedPhotos = require('./posted.json')
+let schedule = require('node-schedule')
+//let async = require('async')
 
-var T = new Twit(config)
+let T = new Twit(config)
 
-var bot_name = 'NASA Time Machine'
-var bot_screen_name = 'NasaTimeMachine'
-// holds photo with current date match
-var foundPhotoObjs = []
-//var alreadyPosted = [] //photo ids that have been posted already
-var isMatchIter = 0
+let bot_name = 'NASA Time Machine'
+let bot_screen_name = 'NasaTimeMachine'
+// holds photos with current date match
+let foundPhotoObjs = []
+//let alreadyPosted = [] //photo ids that have been posted already
+let isMatchIter = 0
 // how many searches to perform
 const iterNum = 200
 
 
-var search = function search() {
+let search = function search() {
   return getNasaData(buildSearchQ(getKeys()))
 }
 
 //setInterval(iterateFunction(iterNum, search), 1000*60*60*24)
 //iterateFunction(iterNum, search)
-var post = function post() {
-  iterateFunction(iterNum, search)
-}
 
-setInterval(post, 1000*60)
+let rule1 = new schedule.RecurrenceRule()
+rule1.hour = 11
+rule1.minute = 0
+
+let post1 = schedule.scheduleJob(rule1, function(){
+  console.log("starting first job")
+  iterateFunction(iterNum, search)
+})
+
+let rule2 = new schedule.RecurrenceRule()
+rule2.hour = 17
+rule2.minute = 0
+
+let post2 = schedule.scheduleJob(rule2, function(){
+  console.log("starting second job")
+  iterateFunction(iterNum, search)
+})
+
+
+//setInterval(post, 1000*60)
+
 
 
 // Downloads resource at any URL provided
-var download = function(uri, filename, callback){
+let download = function(uri, filename, callback){
   request.head(uri, function(err, res, body){
     console.log('content-type:', res.headers['content-type'])
     console.log('content-length:', res.headers['content-length'])
@@ -47,9 +65,9 @@ var download = function(uri, filename, callback){
 // Filter and sort our photos by age
 function processPhotos() {
   console.log("In processPhoto()")
-  var foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id') //eliminate duplicates
+  let foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id') //eliminate duplicates
   //console.log("Unique found photos: ", foundPhotos)
-  var byOldest = _.sortBy(foundPhotos, 
+  let byOldest = _.sortBy(foundPhotos, 
     [function(p) { return p.year }])    //sort by oldest first
   console.log("Photos by year: ", byOldest)
 
@@ -81,7 +99,6 @@ function postPhoto(photo) {
 
     // put new posted photo into array and write to file
     postedPhotos.push(photo.nasa_id)
-
     const stringifiedArr = JSON.stringify(postedPhotos)
     fs.writeFile("posted.json", stringifiedArr, "utf8", 
       function(err) {if(err) console.log("Error writing id to file: ", err)})
@@ -101,7 +118,7 @@ function postPhoto(photo) {
 function getNasaData(q) {
   //console.log("In getNasaData(" + q + ")")
   if(!q) q='apollo%2011&description=moon%20landing&media_type=image'
-  var url = 'http://images-api.nasa.gov/search?q=' + q
+  let url = 'http://images-api.nasa.gov/search?q=' + q
 
   function callback(error, response, body) {
     //console.log('statusCode:', response && response.statusCode) // Print the response status code if a response was received
@@ -122,29 +139,29 @@ function getNasaData(q) {
 // finds photos that match current date.
 function isDateMatch(photoData) {
   console.log("In isDateMatch()")
-  photos = photoData.collection.items
-  var photoCount = photos.length
-  var matchedPhoto = {}
+  let photos = photoData.collection.items
+  let photoCount = photos.length
+  let matchedPhoto = {}
 
   //get date today
   const mToday = dateToday().month
   const dToday = dateToday().day
 
-  var photoData = _.forEach(photos, function(value, key) {
-    var data = value.data
-    var href = value.links[0].href
-    photoData = _.forEach(data, function(d) {
+  let colItem = _.forEach(photos, function(value, key) {
+    let data = value.data
+    let href = value.links[0].href
+    let photo = _.forEach(data, function(d) {
       //console.log("value: ", d)
       d.href = href
-      var date_created = d.date_created
-      var dObj = new Date(date_created)
-      var day = dObj.getDate()
-      var month = dObj.getMonth() + 1 //0-11 + 1
-      var year = dObj.getFullYear()
+      let date_created = d.date_created
+      let dObj = new Date(date_created)
+      let day = dObj.getDate()
+      let month = dObj.getMonth() + 1 //0-11 + 1
+      let year = dObj.getFullYear()
 
       // match date and check to see if posted already
       
-      var isPosted = _.includes(postedPhotos, d.nasa_id)
+      let isPosted = _.includes(postedPhotos, d.nasa_id)
       if((mToday == month) && (dToday == day) && (!isPosted)) {
         matchedPhoto.title = d.title
         matchedPhoto.description = d.description
@@ -174,11 +191,11 @@ function isDateMatch(photoData) {
 //
 function getKeys() {
   //console.log("In getKeys()")
-  var places = keywords.places
-  var things = keywords.things
-  var p = Math.floor(Math.random()*places.length)
-  var t = Math.floor(Math.random()*things.length)
-  var randKeywords = [places[p], things[t]]
+  let places = keywords.places
+  let things = keywords.things
+  let p = Math.floor(Math.random()*places.length)
+  let t = Math.floor(Math.random()*things.length)
+  let randKeywords = [places[p], things[t]]
   //console.log("places, things: ", places, things)
   //remove searched keywords from arrays
   //places.splice(p, p)
@@ -189,10 +206,7 @@ function getKeys() {
 
 function buildSearchQ(keys) {
   //console.log("In buildSearchQ()")
-  if(!keys) var randKeys = getKeys()
-  var randKeys = keys
-  //console.log("Random keys: ", randKeys)
-  var searchQ = randKeys[0] + '%20' + randKeys[1] + '&media_type=image'
+  let searchQ = keys[0] + '%20' + keys[1] + '&media_type=image'
   return searchQ
 }
 
@@ -208,10 +222,10 @@ function buildSearchQ(keys) {
 //
 function dateToday() {
   //console.log("In dateToday()")
-  var date = new Date()
-  var today = {}
-  today.day = date.getDate() - 26
-  today.month = date.getMonth() + 4
+  let date = new Date()
+  let today = {}
+  today.day = date.getDate()
+  today.month = date.getMonth() + 1
   today.year = date.getFullYear()
 
   return today
@@ -220,7 +234,7 @@ function dateToday() {
 function iterateFunction(num, iterFunction) {
   console.log("In iterateFunction()")
   if(!num) num = 10
-  for(var i = 0; i < num; i++) {
+  for(let i = 0; i < num; i++) {
     iterFunction()
   }
 }
@@ -234,7 +248,7 @@ function iterateFunction(num, iterFunction) {
 // gets tweets with specified query parameters
 function getTweets (params) {
   if(!params) {
-    var params = { 
+    let params = { 
       q: 'global warming OR climate change :) since:2015-12-21', 
       count: 20 
     }
@@ -245,8 +259,8 @@ function getTweets (params) {
     if(err) console.log("there was an error: ", err)
     else console.log("data received successfully")
 
-    var tweets = data.statuses;
-    for(var i = 0; i < tweets.length; i++){
+    let tweets = data.statuses;
+    for(let i = 0; i < tweets.length; i++){
       console.log(tweets[i].text)
     }
     //console.log(data)
@@ -256,7 +270,7 @@ function getTweets (params) {
 // tweetIt()
 //
 function tweetIt(txt) {
-  var tweet = {
+  let tweet = {
     status: txt
   }
 
@@ -273,7 +287,7 @@ function tweetIt(txt) {
 // followed()
 //
 //Sets up user stream
-var stream = T.stream('user')
+let stream = T.stream('user')
 //Anytime someone follows us
 stream.on('follow', followed)
 stream.on('error', function (err) { 
@@ -282,8 +296,8 @@ stream.on('error', function (err) {
 
 function followed(eventMsg) {
   console.log("follow event ")
-  var name = eventMsg.source.name
-  var screen_name = eventMsg.source.screen_name
+  let name = eventMsg.source.name
+  let screen_name = eventMsg.source.screen_name
   if(screen_name !== bot_screen_name) {
     tweetIt('@' + screen_name + ' Thank you for following me!')
   }
@@ -311,20 +325,20 @@ function reTweet(tweetId) {
 // post a tweet with media 
 // 
 function tweetPhoto (photoObj, tweet) {
-  var b64Photo = fs.readFileSync('./imgs/' + photoObj.nasa_id + '.jpg', { encoding: 'base64' })
+  let b64Photo = fs.readFileSync('./imgs/' + photoObj.nasa_id + '.jpg', { encoding: 'base64' })
    
   // first we must post the media to Twitter 
   T.post('media/upload', { media_data: b64Photo }, function (err, data, response) {
     // now we can assign alt text to the media, for use by screen readers and 
     // other text-based presentations and interpreters 
-    var mediaIdStr = data.media_id_string
-    var altText = photoObj.title
-    var meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
+    let mediaIdStr = data.media_id_string
+    let altText = photoObj.title
+    let meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
    
     T.post('media/metadata/create', meta_params, function (err, data, response) {
       if (!err) {
         // now we can reference the media and post a tweet (media will attach to the tweet) 
-        var params = { status: [tweet], media_ids: [mediaIdStr] }
+        let params = { status: [tweet], media_ids: [mediaIdStr] }
    
         T.post('statuses/update', params, function (err, data, response) {
           console.log(data)
@@ -337,12 +351,12 @@ function tweetPhoto (photoObj, tweet) {
 
 //
 function tweetAtUs(eventMsg) {
-  var replyTo = eventMsg.in_reply_to_screen_name
-  var text = eventMsg.text
-  var fromUser = eventMsg.user.screen_name
+  let replyTo = eventMsg.in_reply_to_screen_name
+  let text = eventMsg.text
+  let fromUser = eventMsg.user.screen_name
 
   if(replyTo === 'NasaTimeMachine') {
-    var newTweet = '@' + fromUser + ' thanks for saying hi!'
+    let newTweet = '@' + fromUser + ' thanks for saying hi!'
     tweetIt(newTweet)
   }
 } 
