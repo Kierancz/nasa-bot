@@ -19,19 +19,17 @@ let foundPhotoObjs = []
 //let alreadyPosted = [] //photo ids that have been posted already
 let isMatchIter = 0
 // how many searches to perform
-const iterNum = 200
+const iterNum = 100
 
 
 let search = function search() {
   return getNasaData(buildSearchQ(getKeys()))
 }
 
-//setInterval(iterateFunction(iterNum, search), 1000*60*60*24)
-//iterateFunction(iterNum, search)
 
 let rule1 = new schedule.RecurrenceRule()
 rule1.hour = 11
-rule1.minute = 0
+rule1.minute = 33
 
 let post1 = schedule.scheduleJob(rule1, function(){
   console.log("starting first job")
@@ -46,10 +44,6 @@ let post2 = schedule.scheduleJob(rule2, function(){
   console.log("starting second job")
   iterateFunction(iterNum, search)
 })
-
-
-//setInterval(post, 1000*60)
-
 
 
 // Downloads resource at any URL provided
@@ -125,7 +119,7 @@ function getNasaData(q) {
     if(body) var data = JSON.parse(body)
     //console.log("photos: ", photos)
     if(error) {
-      console.log('error:', error) // Print the error if one occurred
+      console.log('error getting NASA data:', error) 
     } else if(data) {
       isDateMatch(data)
     }
@@ -160,7 +154,6 @@ function isDateMatch(photoData) {
       let year = dObj.getFullYear()
 
       // match date and check to see if posted already
-      
       let isPosted = _.includes(postedPhotos, d.nasa_id)
       if((mToday == month) && (dToday == day) && (!isPosted)) {
         matchedPhoto.title = d.title
@@ -268,7 +261,7 @@ function getTweets (params) {
 }
 
 // tweetIt()
-//
+// tweets simple text string
 function tweetIt(txt) {
   let tweet = {
     status: txt
