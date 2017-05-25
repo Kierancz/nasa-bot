@@ -19,7 +19,7 @@ let foundPhotoObjs = []
 //let alreadyPosted = [] //photo ids that have been posted already
 let isMatchIter = 0
 // how many searches to perform
-const iterNum = 100
+const iterNum = 200
 
 
 let search = function search() {
@@ -28,20 +28,20 @@ let search = function search() {
 
 
 let rule1 = new schedule.RecurrenceRule()
-rule1.hour = 11
-rule1.minute = 33
+rule1.hour = 14
+rule1.minute = 0
 
 let post1 = schedule.scheduleJob(rule1, function(){
-  console.log("starting first job")
+  console.log("starting first photo search & post")
   iterateFunction(iterNum, search)
 })
 
 let rule2 = new schedule.RecurrenceRule()
-rule2.hour = 17
+rule2.hour = 20 // 1pm PST
 rule2.minute = 0
 
 let post2 = schedule.scheduleJob(rule2, function(){
-  console.log("starting second job")
+  console.log("starting second photo search & post")
   iterateFunction(iterNum, search)
 })
 
@@ -224,6 +224,7 @@ function dateToday() {
   return today
 }
 
+// simple function that runs provided function for specified iterations
 function iterateFunction(num, iterFunction) {
   console.log("In iterateFunction()")
   if(!num) num = 10
@@ -280,21 +281,31 @@ function tweetIt(txt) {
 // followed()
 //
 //Sets up user stream
-let stream = T.stream('user')
+let userStream = T.stream('user')
 //Anytime someone follows us
-stream.on('follow', followed)
-stream.on('error', function (err) { 
+userStream.on('follow', followed)
+userStream.on('error', function (err) { 
   console.log("stream error: ", err)
 })
 
+// follows anyone who follows us
 function followed(eventMsg) {
   console.log("follow event ")
   let name = eventMsg.source.name
-  let screen_name = eventMsg.source.screen_name
+  let screen_name = eventMsg.source.screen_name // get screen name of follower
+  let responses = keywords.followResponses
+  let r = Math.floor(Math.random()*responses.length)
+
   if(screen_name !== bot_screen_name) {
-    tweetIt('@' + screen_name + ' Thank you for following me!')
+    tweetIt('@' + screen_name + ' ' + responses[r])
   }
-  T.post('friendships/create', {screen_name: screen_name}, 
+  followUser(screen_name) // follow back
+}
+
+
+// follows the provided user
+function followUser(userName) {
+  T.post('friendships/create', {screen_name: userName}, 
     function(err, data, response) { // Follow the user back
       if (err) { // If error results
         console.log(err); // Print error to the console
@@ -302,7 +313,6 @@ function followed(eventMsg) {
     }
   )
 }
-
 // 
 //  reTweet()
 //
@@ -342,7 +352,7 @@ function tweetPhoto (photoObj, tweet) {
 }
 
 
-//
+// replies to anyone that uses our screen name
 function tweetAtUs(eventMsg) {
   let replyTo = eventMsg.in_reply_to_screen_name
   let text = eventMsg.text
@@ -353,3 +363,16 @@ function tweetAtUs(eventMsg) {
     tweetIt(newTweet)
   }
 } 
+
+
+//
+// filter the public stream by english tweets containing `#NASA`
+/*
+let publicStream = T.stream('statuses/filter', { track: '#NASA', language: 'en' })
+
+function findNasaPeeps() {
+  publicStream.on('tweet', function (tweet) {
+    console.log(tweet)
+  })
+}
+*/

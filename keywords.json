@@ -7,7 +7,8 @@
     "ISS",
     "galaxy",
     "space",
-    "jupiter"
+    "planet",
+    "nebula"
   ],
   "things": [
     "apollo",
@@ -17,7 +18,19 @@
     "launch",
     "rover",
     "telescope",
-    "nebula",
-    "aurora"
+    "aurora",
+    "spacewalk"
+  ],
+  "followResponses": [
+    "Thank you for following me!",
+    "You're awesome, I'll follow you too!",
+    "You must be cool, I'll follow you!",
+    "You must like me, I like you too!",
+    "Thanks for the follow, I think you're awesome!",
+    "You're as cool as the vacuum of space!",
+    "Thanks for following, you're out of this world!",
+    "Thanks for following, you're stellar!",
+    "I'll follow you to the edge of the universe!",
+    "Houston, we have a follower. Thanks!"
   ]
 }
