@@ -5,3 +5,4 @@ config.js
 sample_imgs
 imgs
 *.pem
+*.sh

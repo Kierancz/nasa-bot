@@ -12,7 +12,7 @@ let schedule = require('node-schedule')
 let T = new Twit(config)
 
 //
-// Configuration/Declarations
+// Global Configuration/Declarations
 //
 let bot_name = 'NASA Time Machine'
 let bot_screen_name = 'NasaTimeMachine'
@@ -20,9 +20,9 @@ let bot_screen_name = 'NasaTimeMachine'
 let foundPhotoObjs = []
 let isMatchIter = 0
 // how many searches to perform
-const iterNum = 20
+const iterNum = 200
 // how many broad searches to perform if we don't find enough the first time
-const iterNumBroad = 50
+const iterNumBroad = 99
 let triedBroad = false
 
 //
@@ -71,10 +71,10 @@ function processPhotos() {
   let foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id') //eliminate duplicates
   //console.log("Unique found photos: ", foundPhotos)
 
-  // if we didn't find many photos search again with broader search
+  // if we didn't find any photos search again with broader search
   if(foundPhotos.length < 1 && !triedBroad) {
-    iterateFunction(50, searchBroad)
     triedBroad = true
+    iterateFunction(50, searchBroad)
   }
   else if(foundPhotos.length){  // post photo
     let byOldest = _.sortBy(foundPhotos, 
@@ -192,9 +192,9 @@ function isDateMatch(photoData) {
     processPhotos()
     isMatchIter = 0 // reset for next photo round
   }
-  if(isMatchIter == iterNumBroad) {
-    console.log("isMatchIter == iterNumBroad... processing photo")
-    processPhoto()
+  // when finished broad searching process photos
+  if(isMatchIter == iterNumBroad && triedBroad) {
+    processPhotos()
     isMatchIter = 0
   }
 }
