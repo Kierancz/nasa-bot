@@ -16,7 +16,6 @@
   "license": "ISC",
   "dependencies": {
     "async": "^2.3.0",
-    "asyncawait": "^1.0.6",
     "lodash": "^4.17.4",
     "node-schedule": "^1.2.1",
     "twit": "^2.2.5"

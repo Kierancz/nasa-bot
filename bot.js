@@ -8,27 +8,35 @@ const fs = require('fs')
 const keywords = require('./keywords.json')
 let postedPhotos = require('./posted.json')
 let schedule = require('node-schedule')
-//let async = require('async')
 
 let T = new Twit(config)
 
+//
+// Configuration/Declarations
+//
 let bot_name = 'NASA Time Machine'
 let bot_screen_name = 'NasaTimeMachine'
 // holds photos with current date match
 let foundPhotoObjs = []
-//let alreadyPosted = [] //photo ids that have been posted already
 let isMatchIter = 0
 // how many searches to perform
-const iterNum = 200
+const iterNum = 20
+// how many broad searches to perform if we don't find enough the first time
+const iterNumBroad = 50
+let triedBroad = false
 
-
+//
+// Search Scheduling Config
+//
 let search = function search() {
   return getNasaData(buildSearchQ(getKeys()))
 }
-
+let searchBroad = function search() {
+  return getNasaData(buildSearchQ(getKeys(), true))
+}
 
 let rule1 = new schedule.RecurrenceRule()
-rule1.hour = 14
+rule1.hour = 17 // 10am PST
 rule1.minute = 0
 
 let post1 = schedule.scheduleJob(rule1, function(){
@@ -44,7 +52,8 @@ let post2 = schedule.scheduleJob(rule2, function(){
   console.log("starting second photo search & post")
   iterateFunction(iterNum, search)
 })
-
+//------------------
+iterateFunction(iterNum, search)
 
 // Downloads resource at any URL provided
 let download = function(uri, filename, callback){
@@ -61,11 +70,19 @@ function processPhotos() {
   console.log("In processPhoto()")
   let foundPhotos = _.uniqBy(foundPhotoObjs, 'nasa_id') //eliminate duplicates
   //console.log("Unique found photos: ", foundPhotos)
-  let byOldest = _.sortBy(foundPhotos, 
-    [function(p) { return p.year }])    //sort by oldest first
-  console.log("Photos by year: ", byOldest)
 
-  postPhoto(byOldest[0])
+  // if we didn't find many photos search again with broader search
+  if(foundPhotos.length < 1 && !triedBroad) {
+    iterateFunction(50, searchBroad)
+    triedBroad = true
+  }
+  else if(foundPhotos.length){  // post photo
+    let byOldest = _.sortBy(foundPhotos, 
+      [function(p) { return p.year }])    //sort by oldest first
+    console.log("Photos by year: ", byOldest)
+
+    postPhoto(byOldest[0])
+  }
 }
 
 
@@ -175,6 +192,11 @@ function isDateMatch(photoData) {
     processPhotos()
     isMatchIter = 0 // reset for next photo round
   }
+  if(isMatchIter == iterNumBroad) {
+    console.log("isMatchIter == iterNumBroad... processing photo")
+    processPhoto()
+    isMatchIter = 0
+  }
 }
 
 
@@ -197,9 +219,18 @@ function getKeys() {
 
 }
 
-function buildSearchQ(keys) {
+function buildSearchQ(keys, broaden) {
+  let searchQ;
   //console.log("In buildSearchQ()")
-  let searchQ = keys[0] + '%20' + keys[1] + '&media_type=image'
+  if(!broaden) {
+    searchQ = keys[0] + '%20' + keys[1] + '&media_type=image'
+  }
+  else if(broaden) {
+    //chose a single random key from either places or things key arrays
+    let randKey = Math.random() < 0.5 ? keys[0] : keys[1];
+    searchQ = randKey + '&media_type=image'
+  }
+  console.log("search query: ", searchQ)
   return searchQ
 }
 
