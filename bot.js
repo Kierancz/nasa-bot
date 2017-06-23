@@ -20,9 +20,9 @@ let bot_screen_name = 'NasaTimeMachine'
 let foundPhotoObjs = []
 let isMatchIter = 0
 // how many searches to perform
-const iterNum = 200
+const iterNum = 199
 // how many broad searches to perform if we don't find enough the first time
-const iterNumBroad = 99
+const iterNumBroad = 50
 let triedBroad = false
 
 //
@@ -53,7 +53,6 @@ let post2 = schedule.scheduleJob(rule2, function(){
   iterateFunction(iterNum, search)
 })
 //------------------
-iterateFunction(iterNum, search)
 
 // Downloads resource at any URL provided
 let download = function(uri, filename, callback){
@@ -72,7 +71,7 @@ function processPhotos() {
   //console.log("Unique found photos: ", foundPhotos)
 
   // if we didn't find any photos search again with broader search
-  if(foundPhotos.length < 1 && !triedBroad) {
+  if((foundPhotos.length < 1) && !triedBroad) {
     triedBroad = true
     iterateFunction(50, searchBroad)
   }
@@ -91,6 +90,7 @@ function postPhoto(photo) {
   console.log("In postPhoto()")
   // throw out global photo collection we don't need anymore
   foundPhotoObjs = []
+  triedBroad = false  // reset broad search status
 
   if(photo) {
     console.log("Photo to post: ", photo)
@@ -193,7 +193,7 @@ function isDateMatch(photoData) {
     isMatchIter = 0 // reset for next photo round
   }
   // when finished broad searching process photos
-  if(isMatchIter == iterNumBroad && triedBroad) {
+  if((isMatchIter == iterNumBroad) && triedBroad) {
     processPhotos()
     isMatchIter = 0
   }
@@ -220,12 +220,9 @@ function getKeys() {
 }
 
 function buildSearchQ(keys, broaden) {
-  let searchQ;
+  let searchQ = keys[0] + '%20' + keys[1] + '&media_type=image'
   //console.log("In buildSearchQ()")
-  if(!broaden) {
-    searchQ = keys[0] + '%20' + keys[1] + '&media_type=image'
-  }
-  else if(broaden) {
+  if(broaden) {
     //chose a single random key from either places or things key arrays
     let randKey = Math.random() < 0.5 ? keys[0] : keys[1];
     searchQ = randKey + '&media_type=image'
