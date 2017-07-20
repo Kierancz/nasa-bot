@@ -2,6 +2,7 @@ node_modules
 *.log
 ._*
 config.js
+config2.js
 sample_imgs
 imgs
 *.pem

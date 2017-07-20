@@ -12,6 +12,18 @@
   ],
   "things": [
     "apollo",
+    "extravehicular",
+    "concept",
+    "artist",
+    "blast",
+    "rover",
+    "telescope",
+    "aurora",
+    "spacewalk",
+    "phenomenon"
+  ],
+  "singles": [
+    "nebula",
     "hubble",
     "concept",
     "artist",
