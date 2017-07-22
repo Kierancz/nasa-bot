@@ -22,7 +22,7 @@ let BotScreenName = 'NasaTimeMachine';
 let FoundPhotoObjs = [];
 let IsMatchIter = 0;
 // how many searches to perform
-const IterNum = 199;
+let IterNum = 199;
 // how many broad searches to perform if we don't find enough the first time
 const IterNumBroad = 50;
 let TriedBroad = false;
@@ -48,11 +48,12 @@ let searchBroad = function search() {
 if(TestMode) {
   T = new Twit(config2);
   // Run a search and photo post
+  IterNum = 50;
   iterateFunction(IterNum, search);
 } 
 else {
   T = new Twit(config);
-  // Schedule Individual Photo Searchs and Post
+  // Schedule Individual Photo Searches and Post
   postSearch(timeRule(17, 0));
   postSearch(timeRule(20, 0));
 }
@@ -420,7 +421,7 @@ function reTweet(tweetId) {
 // 
 // post a tweet with media 
 // 
-function tweetPhoto (photoObj, tweet) {
+function tweetPhoto (photoObj, status) {
   let b64Photo = fs.readFileSync('./imgs/' + photoObj.nasa_id + '.jpg', { encoding: 'base64' })
    
   // first we must post the media to Twitter 
@@ -430,6 +431,8 @@ function tweetPhoto (photoObj, tweet) {
     let mediaIdStr = data.media_id_string;
     let altText = photoObj.title;
     let meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
+    // limit to 140 chars
+    let tweet = status.substring(0, 140);
    
     T.post('media/metadata/create', meta_params, function (err, data, response) {
       if (!err) {
