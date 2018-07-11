@@ -3,33 +3,37 @@
 // Dependencies
 //
 console.log("The bot is starting");
-let Twit = require('twit');
-let config = require('./config');
-let config2 = require('./config2');
-let request = require('request');
-let _ = require('lodash');
-const fs = require('fs');
+const Twit = require('twit');
+const config = require('./config');
+const config2 = require('./config2');
+const request = require('request');
+const _ = require('lodash');
+let fs = require('fs');
+
 const keywords = require('./keywords.json');
+const schedule = require('node-schedule');
+const twitter = require('./twitter.js');
 let postedPhotos = require('./posted.json');
-let schedule = require('node-schedule');
 
 //
 // Global Configuration
 //
-let BotName = 'NASA Time Machine';
-let BotScreenName = 'NasaTimeMachine';
+
+// Global Constants
+//
+// Enable testing twitter account
+const TEST_MODE = true;
+// how many broad searches to perform if we don't find enough the first time
+const ITER_NUM_BROAD = 50;
+
+
 // holds photos with current date match
 let FoundPhotoObjs = [];
 let IsMatchIter = 0;
 // how many searches to perform
 let IterNum = 199;
-// how many broad searches to perform if we don't find enough the first time
-const IterNumBroad = 50;
 let TriedBroad = false;
 let OffsetPhotos = false;
-// Enable testing twitter account
-const TestMode = true;
-// TestMode = false;
 // Declare our Global Twit object
 let T;
 
@@ -42,10 +46,10 @@ let search = function search() {
 let searchBroad = function search() {
   return getNasaData(buildSearchQ(getKeys(), true));
 }
-
+iterateFunction(IterNum, search);
 
 // If in test mode use alt twitter account for testing
-if(TestMode) {
+if(TEST_MODE) {
   T = new Twit(config2);
   // Run a search and photo post
   IterNum = 50;
@@ -66,31 +70,11 @@ function timeRule(hr, min) {
 }
 
 function postSearch(scheduleRule) {
-  let post = schedule.scheduleJob(schduleRule, function() {
+  let post = schedule.scheduleJob(scheduleRule, function() {
     console.log("starting photo search & post");
     iterateFunction(IterNum, search);
   });
 }
-
-/*
-let rule1 = new schedule.RecurrenceRule();
-rule1.hour = 17; // 10am PST
-rule1.minute = 0;
-
-let post1 = schedule.scheduleJob(rule1, function(){
-  console.log("starting first photo search & post");
-  iterateFunction(IterNum, search);
-})
-
-let rule2 = new schedule.RecurrenceRule();
-rule2.hour = 20; // 1pm PST
-rule2.minute = 0;
-
-let post2 = schedule.scheduleJob(rule2, function() {
-  console.log("starting second photo search & post");
-  iterateFunction(IterNum, search);
-})
-*/
 
 //------------------
 
@@ -146,7 +130,7 @@ function postPhoto(photo) {
 
     //read in all the previously posted photos for match comparison later
     fs.readFile('posted.json', 'utf8', function(err, data) {  
-      if(err) console.log("Error reading ids from file: ", err);
+      if(err) console.error("Error reading ids from file: ", err);
       postedPhotos = JSON.parse(data);
       console.log("posted ids: ", postedPhotos, typeof(postedPhotos));
     })
@@ -156,13 +140,13 @@ function postPhoto(photo) {
     const stringifiedArr = JSON.stringify(postedPhotos);
     fs.writeFile("posted.json", stringifiedArr, "utf8", 
       function(err) { 
-        if(err) console.log("Error writing id to file: ", err)
+        if(err) console.error("Error writing id to file: ", err)
       });
 
     // download the photo so we can upload to post
     download(photo.href, photoTitle, function(){
       console.log('Photo downloaded: ', photoTitle);
-      tweetPhoto(photo, tweet);  
+      twitter.tweetPhoto(photo, tweet);  
     });
   }
 }
@@ -194,7 +178,6 @@ function getNasaData(q) {
 // Iterates through NASA photo collection and
 // finds photos that match current date.
 function isDateMatch(photoData) {
-  console.log("In isDateMatch()");
   let photos = photoData.collection.items;
   let photoCount = photos.length;
   let matchedPhoto = {}
@@ -238,7 +221,7 @@ function isDateMatch(photoData) {
     IsMatchIter = 0; // reset for next photo round
   }
   // when finished broad searching process photos
-  if((IsMatchIter == IterNumBroad) && TriedBroad) {
+  if((IsMatchIter == ITER_NUM_BROAD) && TriedBroad) {
     processPhotos();
     IsMatchIter = 0;
   }
@@ -256,12 +239,8 @@ function getKeys() {
   let p = Math.floor(Math.random()*places.length);
   let t = Math.floor(Math.random()*things.length);
   let randKeywords = [places[p], things[t]];
-  //console.log("places, things: ", places, things)
-  //remove searched keywords from arrays
-  //places.splice(p, p)
-  //things.splice(t, t)
-  return randKeywords;
 
+  return randKeywords;
 }
 
 function buildSearchQ(keys, broaden) {
@@ -272,7 +251,7 @@ function buildSearchQ(keys, broaden) {
     let randKey = Math.random() < 0.5 ? keys[0] : keys[1];
     searchQ = randKey + 'year_end=1990&media_type=image';
   }
-  console.log("search query: ", searchQ);
+  // console.log("search query: ", searchQ);
   return searchQ
 }
 
@@ -309,7 +288,6 @@ function dateToday() {
 
 // simple function that runs provided function for specified iterations
 function iterateFunction(num, iterFunction) {
-  console.log("In iterateFunction()");
   if(!num) num = 10;
   for(let i = 0; i < num; i++) {
     iterFunction();
@@ -317,158 +295,14 @@ function iterateFunction(num, iterFunction) {
 }
 
 //
-//----------------------------------------------------------
-// Twitter functions
-//----------------------------------------------------------
+// Twitter Streams
 //
 
-// gets tweets with specified query parameters
-function getTweets(params) {
-  if(!params) {
-    let params = { 
-      q: 'global warming OR climate change :) since:2015-12-21', 
-      count: 20 
-    };
-  }
-  T.get('search/tweets', params, gotData);
-
-  function gotData(err, data, response) {
-    if(err) console.log("there was an error: ", err);
-    else console.log("data received successfully");
-
-    let tweets = data.statuses;
-    for(let i = 0; i < tweets.length; i++){
-      console.log(tweets[i].text);
-    }
-    //console.log(data)
-  }
-}
-
-// tweetIt()
-// tweets simple text string
-function tweetIt(txt) {
-  let tweet = {
-    status: txt
-  };
-
-  T.post('statuses/update', tweet, tweeted);
-
-  function tweeted(err, data, response) {
-    if(err) console.log("something went wrong: ", err);
-    else console.log("it tweeted!", response);
-
-    console.log(data);
-  }
-}
-
-// followed()
-//
 //Sets up user stream
 let userStream = T.stream('user');
 //Anytime someone follows us
-userStream.on('follow', followed);
+userStream.on('follow', twitter.followed);
 userStream.on('error', function (err) { 
   console.log("stream error: ", err);
 });
 
-//
-//Sets up second stream
-/*
-let userStream = T2.stream('user');
-//Anytime someone follows us
-userStream.on('follow', followed);
-userStream.on('error', function (err) { 
-  console.log("stream error: ", err);
-});
-*/
-
-// follows anyone who follows us
-function followed(eventMsg) {
-  console.log("follow event ");
-  let name = eventMsg.source.name;
-  let screen_name = eventMsg.source.screen_name; // get screen name of follower
-  let responses = keywords.followResponses;
-  let r = Math.floor(Math.random()*responses.length);
-
-  if(screen_name !== BotScreenName) {
-    tweetIt('@' + screen_name + ' ' + responses[r]);
-  }
-  followUser(screen_name); // follow back
-}
-
-
-// follows the provided user
-function followUser(userName) {
-  T.post('friendships/create', {screen_name: userName}, 
-    function(err, data, response) { // Follow the user back
-      if (err) { // If error results
-        console.log(err); // Print error to the console
-      }
-    }
-  )
-}
-// 
-//  reTweet()
-//
-function reTweet(tweetId) {
-  T.post('statuses/retweet/:id', tweetId, reTweetIt)
-
-  function reTweetIt(err, data, response) {
-    console.log("reTweet data: ", data);
-  }
-}
-
-// 
-// post a tweet with media 
-// 
-function tweetPhoto (photoObj, status) {
-  let b64Photo = fs.readFileSync('./imgs/' + photoObj.nasa_id + '.jpg', { encoding: 'base64' })
-   
-  // first we must post the media to Twitter 
-  T.post('media/upload', { media_data: b64Photo }, function (err, data, response) {
-    // now we can assign alt text to the media, for use by screen readers and 
-    // other text-based presentations and interpreters 
-    let mediaIdStr = data.media_id_string;
-    let altText = photoObj.title;
-    let meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
-    // limit to 140 chars
-    let tweet = status.substring(0, 140);
-   
-    T.post('media/metadata/create', meta_params, function (err, data, response) {
-      if (!err) {
-        // now we can reference the media and post a tweet (media will attach to the tweet) 
-        let params = { status: [tweet], media_ids: [mediaIdStr] }
-   
-        T.post('statuses/update', params, function (err, data, response) {
-          console.log(data);
-        })
-      }
-    })
-  })
-}
-
-
-// replies to anyone that uses our screen name
-function tweetAtUs(eventMsg) {
-  let replyTo = eventMsg.in_reply_to_screen_name;
-  let text = eventMsg.text;
-  let fromUser = eventMsg.user.screen_name;
-
-  if(replyTo === 'NasaTimeMachine') {
-    let newTweet = '@' + fromUser + ' thanks for saying hi!';
-    tweetIt(newTweet);
-  }
-} 
-
-
-//
-// filter the public stream by english tweets containing `#NASA`
-/*
-let publicStream = T.stream('statuses/filter', { track: '#NASA', language: 'en' })
-
-function findNasaPeeps() {
-  publicStream.on('tweet', function (tweet) {
-    console.log(tweet)
-  })
-}
-*/

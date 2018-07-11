@@ -2,7 +2,7 @@
   "name": "tbot",
   "version": "1.0.0",
   "description": "twitter bot",
-  "main": "index.js",
+  "main": "bot.js",
   "repository": "https://github.com/Kierancz/nasa-bot.git",
   "scripts": {
     "start": "node bot.js",
